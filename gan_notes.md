@@ -38,7 +38,14 @@
 - For imag-to-image translation, discriminator is provided examples of real and generated nighttime photos as well as (conditioned on) real daytime photos
     - Generator provided with a random vector from latent space as well as (conditioned on) real daytime photos
 # Pix2Pix GANs
-- A cGAN designed for general-purposed image-to-image translation
+- A cGAN designed for general-purpose image-to-image translation
 - Generation of output is conditional on input source image
-- Discriminator provided both with a source image and target image and determines whether target image is plausible transformation of source one
-- Generator trained with **adversarial loss**, updated with L1 loss, measured between generated image and expected output image 
+- Discriminator (*deep CNN*) provided both with a source image and target image and determines whether target image is plausible transformation of source one
+    - Based on the **effective receptive field** of the model, defining the relationship between one output to the number of pixels in the input --> **PatchGAN**, which is designed so that each output prediction of the model maps to a 70 x 70 square or patch of input image
+    - Benefit of PatchGAN: same model can be applied to input images of different sizes (larger or smaller than 256 x 256 pixels)
+- Generator trained with **adversarial loss**, updated with L1 loss, measured between generated image and expected output image
+    - Encoder-decoder model with U-Net architecture
+    - Downsamples/encodes image input to a bottleneck layer, then upsamples/decodes bottleneck representation to the size of output image
+    - U-Net architecture --> skip-connections added between encoding layers and corresponding decoding layer, forming U-shape 
+- Output of model depends on size of input, may be one value of square activation map of values, where each value is a probability for the likelihood that a patch in the input image is real
+    - Average values to give an overall likelihood score
