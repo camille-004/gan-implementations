@@ -45,7 +45,12 @@
     - Benefit of PatchGAN: same model can be applied to input images of different sizes (larger or smaller than 256 x 256 pixels)
 - Generator trained with **adversarial loss**, updated with L1 loss, measured between generated image and expected output image
     - Encoder-decoder model with U-Net architecture
-    - Downsamples/encodes image input to a bottleneck layer, then upsamples/decodes bottleneck representation to the size of output image
-    - U-Net architecture --> skip-connections added between encoding layers and corresponding decoding layer, forming U-shape 
+    - Down-samples/encodes image input to a bottleneck layer, then up-samples/decodes bottleneck representation to the size of output image
+    - U-Net architecture --> skip-connections added between encoding layers and corresponding decoding layer, forming U-shape
+    - Updated via **weighted sum** of adversarial and L1 loss (weight 100 to 1 in favor or L1 loss)
+        - So generator can generate plausible translation of input image, not just in target domain  
 - Output of model depends on size of input, may be one value of square activation map of values, where each value is a probability for the likelihood that a patch in the input image is real
     - Average values to give an overall likelihood score
+- **Do not converge**, instead, equilibrium found between generator and discriminator models
+    - When should training stop? Save model and use it to generate sample translations every *n* epochs
+    

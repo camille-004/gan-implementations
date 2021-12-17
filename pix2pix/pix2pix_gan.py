@@ -1,4 +1,8 @@
 # %%
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 from keras.layers import (
     Activation, BatchNormalization, Concatenate, Conv2D, Conv2DTranspose,
     Dropout, LeakyReLU
@@ -187,3 +191,125 @@ def build_generator(image_shape=(256, 256, 3)):
     model = Model(input_image, output_image)
 
     return model
+
+
+def build_GAN(generator, discriminator, image_shape):
+    """
+    Connects generator G and discriminator D into composite model.
+    - Source image provided as input to D and G
+    - Output of G is connected to D as "target" image
+    - D predicts likelihood G's output being "real"
+
+    :param generator: pre-defined generator model
+    :param discriminator: pre-defined discriminator model
+    :param image_shape: input image shape
+    :return: compiled GAN model
+    """
+    # Discriminator is updated as standalone, so weights reused but not
+    # trainable
+    for layer in discriminator.layers:
+        if not isinstance(layer, BatchNormalization):
+            layer.trainable = False
+
+    source_img = Input(shape=image_shape)
+    generator_out = generator(source_img)
+    discriminator_out = discriminator([source_img, generator_out])
+    model = Model(source_img, [discriminator_out, generator_out])
+    opt = Adam(lr=0.0002, beta_1=0.5)
+
+    # Two targets: one indicating that generation is real, and real translation
+    # of image
+    model.compile(
+        loss=['binary_crossentropy', 'mae'], optimizer=opt,
+        loss_weights=[1, 100]
+    )
+
+    return model
+
+
+def load_real_examples(f_name):
+    """
+    Load and prepare training images
+
+    :param f_name: filename of training dataset
+    :return: standardized arrays of pixels of source and target images
+    """
+    data = np.load(f_name)
+    X_1, X_2 = data['arr_0'], data['arr_1']
+
+    # Scale from [0, 255] to [-1, 1]
+    X_1 = (X_1 - 127.5) / 127.5
+    X_2 = (X_2 - 127.5) / 127.5
+
+    return [X_1, X_2]
+
+
+def generate_real_examples(data, n_samples, patch_shape):
+    """
+    Select batch of random samples
+
+    :param data: training dataset to unpack
+    :param n_samples: input number of samples
+    :param patch_shape: input patch shape
+    :return: images and target
+    """
+    train_A, train_B = data
+
+    random_idx = np.random.randint(0, train_A.shape[0], n_samples)
+    X_1, X_2 = train_A[random_idx], train_B[random_idx]
+
+    # Generate class labels
+    y = np.ones((n_samples, patch_shape, patch_shape, 1))
+
+    return [X_1, X_2], y
+
+
+def generate_fake_examples(generator, samples, patch_shape):
+    """
+    Generates fake instances of data
+
+    :param generator: generator model
+    :param samples: samples from which to predict
+    :param patch_shape: input patch shape
+    :return: images and target
+    """
+    X = generator.predict(samples)
+    y = np.zeros((len(X), patch_shape, patch_shape, 1))
+    return X, y
+
+
+def summarize_performance(step, generator, data, n_samples=3):
+    [X_real_src, X_real_target], _ = generate_real_examples(data, n_samples, 1)
+    X_fake_target, _ = generate_fake_examples(generator, X_real_src, 1)
+
+    # Scale pixels from [-1, 1] to [0, 1]
+    X_real_src = (X_real_src + 1) / 2.0
+    X_real_target = (X_real_target + 1) / 2.0
+    X_fake_target = (X_fake_target + 1) / 2.0
+
+    # Plot real source images
+    for i in range(n_samples):
+        plt.subplot(n_samples, n_samples, 1 + i)
+        plt.axis('off')
+        plt.imshow(X_real_src[i])
+
+    # Plot generated target image
+    for i in range(n_samples):
+        plt.subplot(n_samples, n_samples, 1 + i)
+        plt.axis('off')
+        plt.imshow(X_fake_target[i])
+
+    # Plot real target image
+    for i in range(n_samples):
+        plt.subplot(n_samples, n_samples, 1 + i)
+        plt.axis('off')
+        plt.imshow(X_real_target[i])
+
+    plot_f_name = f'epoch_{step + 1}.png'
+    plt.savefig(os.path.join('results/', plot_f_name))
+    plt.close()
+
+    model_f_name = f'model_epoch_{step + 1}.h5'
+    generator.save(os.path.join('models/', model_f_name))
+
+    print(f'> Saved: {plot_f_name}, {model_f_name}')
