@@ -253,10 +253,10 @@ def generate_real_examples(data, n_samples, patch_shape):
     :param patch_shape: input patch shape
     :return: images and target
     """
-    train_A, train_B = data
+    train_src, train_target = data
 
-    random_idx = np.random.randint(0, train_A.shape[0], n_samples)
-    X_1, X_2 = train_A[random_idx], train_B[random_idx]
+    random_idx = np.random.randint(0, train_src.shape[0], n_samples)
+    X_1, X_2 = train_src[random_idx], train_target[random_idx]
 
     # Generate class labels
     y = np.ones((n_samples, patch_shape, patch_shape, 1))
@@ -313,3 +313,63 @@ def summarize_performance(step, generator, data, n_samples=3):
     generator.save(os.path.join('models/', model_f_name))
 
     print(f'> Saved: {plot_f_name}, {model_f_name}')
+
+
+def train(discriminator, generator, gan, data, n_epochs=100, n_batches=1):
+    """
+    Trains pix2pix model.
+    - Select a batch of real samples
+    - Use generator to generate batch of corresponding fake samples w/ real
+      sources
+    - Update discriminator with batch of real images and fake images
+    - Then, update generator with real sources + class labels, real targets
+      (for computing loss)
+    - Two loss scores + weighted sum score, weighted sum used to update weights
+    - Print loss on each update to console, every 10 epochs
+
+    :param discriminator: defined discriminator
+    :param generator: defined generator
+    :param gan: composite model (D + G)
+    :param data: training data
+    :param n_epochs: number of epochs
+    :param n_batches: batch size
+    :return:
+    """
+    n_patches = discriminator.output_shape[1]
+    src_train, target_train = data
+    batch_per_epoch = int(len(src_train) / n_batches)
+    n_steps = batch_per_epoch * n_epochs
+
+    for i in range(n_steps):
+        [X_real_src, X_real_target], y_real = generate_real_examples(
+            data, n_batches, n_patches
+        )
+        X_fake_target, y_fake = generate_fake_examples(
+            generator, X_real_src, n_patches
+        )
+        discriminator_loss_1 = discriminator.train_on_batch(
+            [X_real_src, X_real_target], y_real
+        )
+        discriminator_loss_2 = discriminator.train_on_batch(
+            [X_real_src, X_real_target], y_fake
+        )
+        generator_loss, _, _ = gan.train_on_batch(
+            X_real_src, [y_real, X_real_target]
+        )
+        print(f'> Epoch {i + 1}: {discriminator_loss_1}, '
+              f'{discriminator_loss_2}, {generator_loss}')
+        if (i + 1) % (batch_per_epoch * 10) == 0:
+            summarize_performance(i, generator, data)
+
+
+# %%
+dataset = load_real_examples(os.path.join('data/', 'maps/maps_256.npz'))
+print(f'Loaded: sources ({dataset[0].shape}, targets ({dataset[1].shape})')
+
+img_shape = dataset[0].shape[1:]
+
+discriminator_model = build_discriminator(img_shape)
+generator_model = build_generator(img_shape)
+GAN_model = build_GAN(generator_model, discriminator_model, img_shape)
+
+train(discriminator_model, generator_model, GAN_model, dataset)
