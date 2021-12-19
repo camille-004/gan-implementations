@@ -356,13 +356,13 @@ def train(discriminator, generator, gan, data, n_epochs=100, n_batches=1):
         generator_loss, _, _ = gan.train_on_batch(
             X_real_src, [y_real, X_real_target]
         )
-        print(f'> Epoch {i + 1}: {discriminator_loss_1}, '
+        print(f'> {i + 1}: {discriminator_loss_1}, '
               f'{discriminator_loss_2}, {generator_loss}')
         if (i + 1) % (batch_per_epoch * 10) == 0:
             summarize_performance(i, generator, data)
 
 
-# %%
+#%%
 dataset = load_real_examples(os.path.join('data/', 'maps/maps_256.npz'))
 print(f'Loaded: sources ({dataset[0].shape}, targets ({dataset[1].shape})')
 
@@ -372,4 +372,6 @@ discriminator_model = build_discriminator(img_shape)
 generator_model = build_generator(img_shape)
 GAN_model = build_GAN(generator_model, discriminator_model, img_shape)
 
-train(discriminator_model, generator_model, GAN_model, dataset)
+train(
+    discriminator_model, generator_model, GAN_model, dataset, n_epochs=200
+)
