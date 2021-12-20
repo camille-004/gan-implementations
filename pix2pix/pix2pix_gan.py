@@ -227,11 +227,13 @@ def build_GAN(generator, discriminator, image_shape):
     return model
 
 
-def load_real_examples(f_name):
+def load_real_examples(f_name, _map_to_sat=False):
     """
     Load and prepare training images
 
     :param f_name: filename of training dataset
+    :param _map_to_sat: whether or not we want to translate maps to satellite
+                       images
     :return: standardized arrays of pixels of source and target images
     """
     data = np.load(f_name)
@@ -240,6 +242,9 @@ def load_real_examples(f_name):
     # Scale from [0, 255] to [-1, 1]
     X_1 = (X_1 - 127.5) / 127.5
     X_2 = (X_2 - 127.5) / 127.5
+
+    if _map_to_sat:
+        return [X_2, X_1]
 
     return [X_1, X_2]
 
@@ -278,7 +283,20 @@ def generate_fake_examples(generator, samples, patch_shape):
     return X, y
 
 
-def summarize_performance(epoch, generator, data, n_samples=3):
+def summarize_performance(epoch, generator, data, n_samples=3,
+                          _map_to_sat=False):
+    """
+    Periodically save translation predictions and model at certain number of
+    epochs
+    :param epoch: epoch at which to save results
+    :param generator: pre-defined generator model
+    :param data: data from which to pick samples to test network on
+    :param n_samples: number of samples for which we generate periodic
+                      predictions
+    :param _map_to_sat: whether or not we want to translate map images to
+                       satellite
+    :return:
+    """
     [X_real_src, X_real_target], _ = generate_real_examples(data, n_samples, 1)
     X_fake_target, _ = generate_fake_examples(generator, X_real_src, 1)
 
@@ -306,21 +324,30 @@ def summarize_performance(epoch, generator, data, n_samples=3):
         plt.imshow(X_real_target[i])
 
     plot_f_name = f'epoch_{epoch}.png'
+
+    if _map_to_sat:
+        plot_f_name = f'epoch_{epoch}_map_to_sat.png'
+
     plt.savefig(os.path.join('results/', plot_f_name))
     plt.close()
 
     model_f_name = f'model_epoch_{epoch}.h5'
+
+    if _map_to_sat:
+        model_f_name = f'model_epoch_{epoch}_map_to_sat.h5'
+
     generator.save(os.path.join('models/', model_f_name))
 
     print(f'> Saved: {plot_f_name}, {model_f_name}')
 
 
-def train(discriminator, generator, gan, data, n_epochs=100, n_batches=1):
+def train(discriminator, generator, gan, data, n_epochs=100, n_batches=1,
+          _map_to_sat=False):
     """
     Trains pix2pix model.
     - Select a batch of real samples
     - Use generator to generate batch of corresponding fake samples w/ real
-    sources
+      sources
     - Update discriminator with batch of real images and fake images
     - Then, update generator with real sources + class labels, real targets
     (for computing loss)
@@ -333,6 +360,7 @@ def train(discriminator, generator, gan, data, n_epochs=100, n_batches=1):
     :param data: training data
     :param n_epochs: number of epochs
     :param n_batches: batch size
+    :param _map_to_sat: whether or not to translate map --> satellite
     :return:
     """
     n_patches = discriminator.output_shape[1]
@@ -358,14 +386,28 @@ def train(discriminator, generator, gan, data, n_epochs=100, n_batches=1):
         )
         print(f'> {i + 1}: d1 loss: {discriminator_loss_1}, '
               f'd2 loss: {discriminator_loss_2}, g loss: {generator_loss}')
+
         if (i + 1) % (batch_per_epoch * 10) == 0:
             curr_epoch = int((i + 1) / batch_per_epoch)
-            summarize_performance(curr_epoch, generator, data)
+            if _map_to_sat:
+                summarize_performance(curr_epoch, generator, data, True)
+            else:
+                summarize_performance(curr_epoch, generator, data)
 
 
 # %%
 if __name__ == '__main__':
-    dataset = load_real_examples(os.path.join('data/', 'maps/maps_256.npz'))
+    map_to_sat = False
+
+    if map_to_sat:
+        dataset = load_real_examples(
+            os.path.join('data/', 'maps/maps_256.npz'), True
+        )
+    else:
+        dataset = load_real_examples(
+            os.path.join('data/', 'maps/maps_256.npz')
+        )
+
     print(f'Loaded: sources ({dataset[0].shape}, targets ({dataset[1].shape})')
 
     img_shape = dataset[0].shape[1:]
@@ -374,6 +416,12 @@ if __name__ == '__main__':
     generator_model = build_generator(img_shape)
     GAN_model = build_GAN(generator_model, discriminator_model, img_shape)
 
-    train(
-        discriminator_model, generator_model, GAN_model, dataset, n_epochs=200
-    )
+    if map_to_sat:
+        train(
+            discriminator_model, generator_model, GAN_model, dataset, n_epochs=200,
+            _map_to_sat=True
+        )
+    else:
+        train(
+            discriminator_model, generator_model, GAN_model, dataset, n_epochs=200,
+        )
