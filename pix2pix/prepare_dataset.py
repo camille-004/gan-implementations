@@ -78,12 +78,12 @@ out_file = os.path.join(DATA_DIR, 'maps/maps_256.npz')
 
 [src, target] = load_images(path)
 save_images(src, target, out_file)
-#%%
+# %%
 # Load dataset
 data = np.load(out_file)
 src_images, target_images = data['arr_0'], data['arr_1']
 print(f'Loaded: source images {src_images.shape}, '
       f'target images {target_images.shape}')
-#%%
+# %%
 # Plot images
 plot_images(src_images, target_images, offset=10)
