@@ -390,7 +390,7 @@ def train(discriminator, generator, gan, data, n_epochs=100, n_batches=1,
         if (i + 1) % (batch_per_epoch * 10) == 0:
             curr_epoch = int((i + 1) / batch_per_epoch)
             if _map_to_sat:
-                summarize_performance(curr_epoch, generator, data, True)
+                summarize_performance(curr_epoch, generator, data, _map_to_sat=True)
             else:
                 summarize_performance(curr_epoch, generator, data)
 
