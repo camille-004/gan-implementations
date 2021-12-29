@@ -1,5 +1,6 @@
 """
 Simple GAN from scratch on a one-dimensional function
+TensorFlow Implementation
 """
 # %%
 import os
@@ -13,7 +14,6 @@ from keras.utils.vis_utils import plot_model
 LATENT_DIM = 5
 
 
-# %%
 def objective(x):
     """
     Example one-dimensional function from which to generate random samples
@@ -24,13 +24,6 @@ def objective(x):
     return np.sin(x)
 
 
-inputs = np.arange(-1.5, 1.5, 0.05)
-outputs = [objective(x) for x in inputs]
-plt.plot(inputs, outputs)
-plt.show()
-
-
-# %%
 def generate_real_samples(n=200):
     """
     Generate uniformly random values between -[range] and [range], then
@@ -63,7 +56,6 @@ def generate_fake_samples(n):
     return X, y
 
 
-# %%
 def build_discriminator(n_inputs=2):
     """
     Build a binary discriminator model
@@ -87,15 +79,6 @@ def build_discriminator(n_inputs=2):
     return model
 
 
-D = build_discriminator()
-D.summary()
-plot_model(D,
-           to_file='1d_gan/discriminator_plot.png',
-           show_shapes=True,
-           show_layer_names=True)
-
-
-# %%
 def train_discriminator(_D, n_epochs=1000, n_batches=128):
     """
     Train and evaluate discriminator model
@@ -125,10 +108,6 @@ def train_discriminator(_D, n_epochs=1000, n_batches=128):
               f'fake accuracy - {accuracy_fake}')
 
 
-train_discriminator(D)
-
-
-# %%
 def build_generator(latent_dim, n_outputs=2):
     """
     Build a generator model, which will be similar to the discriminator model.
@@ -155,15 +134,6 @@ def build_generator(latent_dim, n_outputs=2):
     return model
 
 
-G = build_generator(5)
-G.summary()
-plot_model(G,
-           to_file='1d_gan/generator_plot.png',
-           show_shapes=True,
-           show_layer_names=True)
-
-
-# %%
 def generate_latent_points(latent_dim, n):
     """
     To train the generator, generate points in latent space (array of random
@@ -200,10 +170,6 @@ def generate_fake_samples_generator(_G, latent_dim, n, plot=False):
     return X, y
 
 
-generate_fake_samples_generator(G, LATENT_DIM, 100)
-
-
-# %%
 def build_GAN(_G, _D):
     """
     Create subsumed GAN by stacking generator and discriminator, having their
@@ -226,15 +192,6 @@ def build_GAN(_G, _D):
     return model
 
 
-gan = build_GAN(G, D)
-gan.summary()
-plot_model(gan,
-           to_file='1d_gan/gan_plot.png',
-           show_shapes=True,
-           show_layer_names=True)
-
-
-# %%
 def evaluate(epoch, _G, _D, latent_dim, n=200):
     """
     Evaluate the discriminator and plot generator examples at current epoch.
@@ -259,7 +216,7 @@ def evaluate(epoch, _G, _D, latent_dim, n=200):
     plt.scatter(X_fake[:, 0], X_fake[:, 1], color='blue', label='generated')
     plt.title(f'Epoch {epoch}')
     plt.legend()
-    plt.savefig(os.path.join('1d_gan/results/', f'epoch_{epoch}.png'))
+    plt.savefig(os.path.join('gan_1d/results/', f'epoch_{epoch}.png'))
     plt.show()
 
 
@@ -300,7 +257,13 @@ def train(_G, _D, _gan, latent_dim, n_epochs=10000, n_batches=16,
             evaluate(i + 1, _G, _D, latent_dim)
 
 
-D = build_discriminator()
-G = build_generator(LATENT_DIM)
-gan = build_GAN(G, D)
-train(G, D, gan, LATENT_DIM, n_epochs=10000, n_batches=256)
+if __name__ == '__main__':
+    D = build_discriminator()
+    G = build_generator(LATENT_DIM)
+    gan = build_GAN(G, D)
+    gan.summary()
+    plot_model(gan,
+               to_file='gan_1d/gan_plot.png',
+               show_shapes=True,
+               show_layer_names=True)
+    train(G, D, gan, LATENT_DIM, n_epochs=10000, n_batches=256)
